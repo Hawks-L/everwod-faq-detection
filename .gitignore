@@ -1,0 +1,28 @@
+# Credenciales — NUNCA subir
+.env
+
+# Dumps de base de datos — datos de producción
+*.sql
+
+# Caché de embeddings — binario grande, específico de la máquina
+embeddings_cache.pkl
+
+# Bytecode Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+*.log
+
+# Archivos comprimidos
+*.zip
+
+# Notas personales
+MANDAR A ALEJO.txt
+transcripcion_text.txt
+TranscripciónVideo.docx
+anexo1_text.txt
+
+# Configuración local de Claude Code
+.claude/
