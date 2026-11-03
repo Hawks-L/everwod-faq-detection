@@ -7,7 +7,10 @@ DB_HOST     = os.getenv("DB_HOST", "localhost")
 DB_PORT     = int(os.getenv("DB_PORT", "5432"))
 DB_NAME     = os.getenv("DB_NAME", "everwod_production")
 DB_USER     = os.getenv("DB_USER", "everwod")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "everwod123")
+DB_PASSWORD = os.getenv("DB_PASSWORD")  # sin valor por defecto: la contraseña solo vive en .env
+
+# Clave que deben enviar los clientes de la API en la cabecera X-API-Key.
+API_KEY     = os.getenv("API_KEY")
 
 OLLAMA_URL  = os.getenv("OLLAMA_URL", "http://localhost:11434")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text")
