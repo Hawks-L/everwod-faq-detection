@@ -26,3 +26,6 @@ anexo1_text.txt
 
 # Configuración local de Claude Code
 .claude/
+
+# Estructura de la base de producción de Everwod — información interna del aliado
+*_db_structure.ts
