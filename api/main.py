@@ -1,9 +1,11 @@
-from typing import Optional
+from typing import Literal, Optional
+from uuid import UUID
 
 import psycopg2.extras
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi import Depends, FastAPI, HTTPException
+from pydantic import BaseModel, Field
 
+from api.security import require_api_key
 from pipeline.db import get_conn
 
 app = FastAPI(
@@ -15,8 +17,11 @@ app = FastAPI(
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
 
+Status = Literal["pending", "approved", "rejected"]
+
+
 class ReviewBody(BaseModel):
-    reviewed_by: Optional[str] = "admin"
+    reviewed_by: str = Field(default="admin", min_length=1, max_length=255)
 
 
 # ── Routes ───────────────────────────────────────────────────────────────────
@@ -26,10 +31,10 @@ def health():
     return {"status": "ok"}
 
 
-@app.get("/suggestions", tags=["Sugerencias"])
+@app.get("/suggestions", tags=["Sugerencias"], dependencies=[Depends(require_api_key)])
 def list_suggestions(
     workspace_id: Optional[int] = None,
-    status: str = "pending",
+    status: Status = "pending",
 ):
     """Lista sugerencias de FAQs filtradas por workspace y estado."""
     conditions = ["status = %s"]
@@ -55,7 +60,7 @@ def list_suggestions(
     return [dict(r) for r in rows]
 
 
-@app.get("/suggestions/stats", tags=["Sugerencias"])
+@app.get("/suggestions/stats", tags=["Sugerencias"], dependencies=[Depends(require_api_key)])
 def suggestions_stats():
     """Resumen de sugerencias por estado."""
     sql = "SELECT status, COUNT(*) AS total FROM faq_suggestions GROUP BY status"
@@ -66,25 +71,25 @@ def suggestions_stats():
     return [dict(r) for r in rows]
 
 
-@app.post("/suggestions/{suggestion_id}/approve", tags=["Validación"])
-def approve(suggestion_id: str, body: ReviewBody):
+@app.post("/suggestions/{suggestion_id}/approve", tags=["Validación"], dependencies=[Depends(require_api_key)])
+def approve(suggestion_id: UUID, body: ReviewBody):
     """Aprueba una sugerencia y la marca como lista para agregar al agente."""
     return _set_status(suggestion_id, "approved", body.reviewed_by)
 
 
-@app.post("/suggestions/{suggestion_id}/reject", tags=["Validación"])
-def reject(suggestion_id: str, body: ReviewBody):
+@app.post("/suggestions/{suggestion_id}/reject", tags=["Validación"], dependencies=[Depends(require_api_key)])
+def reject(suggestion_id: UUID, body: ReviewBody):
     """Rechaza una sugerencia."""
     return _set_status(suggestion_id, "rejected", body.reviewed_by)
 
 
-@app.get("/suggestions/{suggestion_id}", tags=["Sugerencias"])
-def get_suggestion(suggestion_id: str):
+@app.get("/suggestions/{suggestion_id}", tags=["Sugerencias"], dependencies=[Depends(require_api_key)])
+def get_suggestion(suggestion_id: UUID):
     """Detalle de una sugerencia específica."""
     sql = "SELECT * FROM faq_suggestions WHERE id = %s"
     with get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(sql, [suggestion_id])
+            cur.execute(sql, [str(suggestion_id)])
             row = cur.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Sugerencia no encontrada")
@@ -93,7 +98,7 @@ def get_suggestion(suggestion_id: str):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _set_status(suggestion_id: str, status: str, reviewed_by: Optional[str]):
+def _set_status(suggestion_id: UUID, status: Status, reviewed_by: str):
     sql = """
         UPDATE faq_suggestions
         SET status      = %s,
@@ -105,7 +110,7 @@ def _set_status(suggestion_id: str, status: str, reviewed_by: Optional[str]):
     """
     with get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(sql, (status, reviewed_by, suggestion_id))
+            cur.execute(sql, (status, reviewed_by, str(suggestion_id)))
             row = cur.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Sugerencia no encontrada")

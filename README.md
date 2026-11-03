@@ -6,6 +6,21 @@
 **Equipo:** Everwod Technologies × Facultad de Ingeniería de Sistemas  
 **Fecha:** Mayo 2026
 
+
+[![Pruebas](https://github.com/Hawks-L/everwod-faq-detection/actions/workflows/tests.yml/badge.svg)](https://github.com/Hawks-L/everwod-faq-detection/actions/workflows/tests.yml)
+
+## En resumen
+
+Pipeline que lee conversaciones reales de agentes de IA en WhatsApp, agrupa las preguntas parecidas con embeddings y DBSCAN, y propone FAQs con un LLM local para que un humano las apruebe.
+
+| | |
+| --- | --- |
+| Datos analizados | 9.294 mensajes de 15 negocios en 90 días |
+| Mensajes agrupados en temas | 95,5 % |
+| Costo de inferencia | Cero: embeddings y LLM corren en local con Ollama |
+| Stack | Python, PostgreSQL, scikit-learn, Ollama (nomic-embed-text, llama3.2:3b), FastAPI, APScheduler |
+| Seguridad | API protegida con API key, entradas tipadas y consultas parametrizadas, con pruebas automatizadas |
+
 ---
 
 ## Resumen Ejecutivo
@@ -192,6 +207,13 @@ Las FAQs sugeridas se persisten en la tabla `faq_suggestions` con estado `pendin
 
 La documentación interactiva está disponible en `http://localhost:8000/docs`.
 
+**Seguridad de la API.** Todas las rutas de sugerencias exigen la cabecera `X-API-Key`, comparada en tiempo constante contra la variable `API_KEY`; sin ella configurada, la API responde 503 en vez de quedar abierta. Los estados solo aceptan `pending`, `approved` o `rejected`, los ids deben ser UUID y todas las consultas a PostgreSQL son parametrizadas. Las pruebas de `tests/` lo verifican sin necesitar base de datos:
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest
+```
+
 ### 3.6 Ejecución periódica
 
 El pipeline se registra en APScheduler con un trigger de intervalo configurable (por defecto 24 horas, zona horaria America/Bogota). Al iniciarse, ejecuta el pipeline inmediatamente y luego en cada intervalo programado.
@@ -346,9 +368,9 @@ docker start everwod_db
 # 2. Ejecutar pipeline manualmente
 python run_pipeline.py --days 90
 
-# 3. Iniciar API de validación
+# 3. Iniciar API de validación (requiere API_KEY en .env)
 python run_api.py
-# → http://localhost:8000/docs
+# → http://localhost:8000/docs  (botón Authorize con la API key)
 
 # 4. Iniciar scheduler (cada 24h)
 python run_scheduler.py --hours 24 --days 90
